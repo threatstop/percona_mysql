@@ -19,8 +19,8 @@
     selevel=s0
   notify:
     - restart mysql
-    - Update percona_mysql_tokudb_variables
-    - Update percona_mysql_percona_audit_logging_variables
+#    - Update percona_mysql_tokudb_variables
+#    - Update percona_mysql_percona_audit_logging_variables
 
 - name: copying mysql.server init script to make startup script consistent across distributions
   template:
@@ -41,11 +41,17 @@
     state=stopped
   when: percona_mysql_upgrade and (percona_mysql_pkg_check_redhat.changed or percona_mysql_pkg_check_debian.changed)
 
+- name: Make sure mysql is listening
+  lineinfile: dest=/etc/mysql/my.cnf regexp="^bind-address" line="#bind-address            = 127.0.0.1" state=present
+  
 - name: start mysql
   service:
     name="{{ percona_mysql_service_name }}"
     state=started
     enabled=yes
+
+- include: set_root_password.yml
+  when: (percona_mysql_pkg_check_redhat.changed or percona_mysql_pkg_check_debian.changed)
 
 - include: install_plugins.yml
 
@@ -54,8 +60,9 @@
     mysql_upgrade --skip-write-binlog
   when: percona_mysql_check_upgrade and (percona_mysql_pkg_check_redhat.changed or percona_mysql_pkg_check_debian.changed)
 
-- name: ensure percona database exists
-  mysql_db:
-    name=percona
-    state=present
-    login_unix_socket=/var/run/mysqld/mysqld.sock
+- name: Ensure the correct version of percona is installed
+  command: mysql --version
+  register: command_result
+  changed_when: False
+  failed_when: command_result.stdout.find('"{{percona_mysql_server_version}}"') != -1
+

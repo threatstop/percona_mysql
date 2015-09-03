@@ -10,6 +10,8 @@
     variable={{ item.value.variable }}
     value={{ item.value.value }}
     login_unix_socket=/var/run/mysqld/mysqld.sock
+  async: 15
+  poll: 5
   when: "{{ item.value.include }} and {{ item.value.dynamic }} and not percona_mysql_force_restart"
   with_dict: percona_mysql_general_variables
 
